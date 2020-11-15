@@ -1,5 +1,4 @@
 # First post
-
 Creating a blog.
 
 ## Markdown processor test
@@ -10,10 +9,11 @@ Based on the first column of this spec: https://commonmark.org/help/
 We need to support:
 
 * headings ✓
-* heading2s ✓
-* lists ✓
-* italics [later]
-* bold [later]
+* sized headings ✓
+* bullet lists ✓
+* bold ✓ (ex**ample** here)
+* italics ✓ (ex*ample* here)
+* bold italics ✓ (ex***ample*** here)
 * links [later]
 * images [later]
 * blockquotes [later]
@@ -21,3 +21,9 @@ We need to support:
 * horizontal rule [later]
 * inline code [later]
 * code block [later]
+
+## Rabbit Hole
+### Rabbit Hole
+#### Rabbit Hole
+##### Rabbit Hole
+###### Rabbit Hole
