@@ -4,6 +4,8 @@
 #include <string>
 #include <cassert>
 
+#include "../willlibcrypto/libcrypto.h"
+
 int skip_space(std::string s, int pos_start) {
     int end = s.size() - 1;
     for(int i = pos_start; i <= end; i++) {
@@ -25,12 +27,12 @@ enum Type {
 
 struct Token {
     Type type;
-    int start;
-    int end;
+    unsigned int start;
+    unsigned int end;
 };
 
-Token next_token(std::string& s, int& pos) {
-    int start = pos;
+Token next_token(std::string& s, unsigned int& pos) {
+    unsigned int start = pos;
 
     Token token;
     if ( s[pos] == '#' ) {
@@ -66,17 +68,32 @@ Token next_token(std::string& s, int& pos) {
     return token;
 }
 
-int main() {
-    char blog_filename_out[] = "out_blog0001.html";
-    char blog_filename_in[] = "blog_entry_0001.md";
+int main(int argc, char * argv [] ) {
+    if (argc < 2) {
+        std::cout << "provide an input file argument";
+        return 1;
+    }
+    std::string arg1 = std::string(argv[1]);
+    std::string blog_filename_in = arg1 + ".md";
+    std::string blog_filename_out = "out/" + arg1 + ".html";
+    std::cout << "input file: " << blog_filename_in << "\toutput file: " << blog_filename_out << std::endl;
     std::ofstream outputFile(blog_filename_out);
+    std::ostringstream outputStream{};
     std::ifstream inputFile(blog_filename_in);
+    if(!inputFile.good()){
+        std::cout << "input file is not good()" << std::endl;
+        return 1;
+    }
+    if(!outputFile.good()){
+        std::cout << "output file is not good()" << std::endl;
+        return 1;
+    }
 
-    outputFile << "<html>" << std::endl;
-    outputFile << "<head>" << std::endl;
-    outputFile << "<title>Blog</title>" << std::endl;
-    outputFile << "</head>" << std::endl;
-    outputFile << "<body>" << std::endl;
+    outputStream << "<html>" << std::endl;
+    outputStream << "<head>" << std::endl;
+    outputStream << "<title>Blog</title>" << std::endl;
+    outputStream << "</head>" << std::endl;
+    outputStream << "<body>" << std::endl;
     
     std::string buffer_input;
     bool mode_list = false;
@@ -86,14 +103,14 @@ int main() {
     std::string end_of_line_stack[10];
     int end_of_line_idx = 0;
     while(std::getline(inputFile, buffer_input)) {
-        int i = 0;
-        int length_line = buffer_input.size();
+        unsigned int i = 0;
+        unsigned int length_line = buffer_input.size();
         while(i < length_line) {
 
             Token t = next_token(buffer_input, i);
 
             if (t.start == 0 && mode_list && t.type != List) {
-                outputFile << "</ul>" << std::endl;
+                outputStream << "</ul>" << std::endl;
                 mode_list = false;
             }
 
@@ -103,7 +120,7 @@ int main() {
                     continue;
                 }
                 int header_level = t.end - t.start;
-                outputFile << std::string("<h").append(std::to_string(header_level)).append(">");
+                outputStream << std::string("<h").append(std::to_string(header_level)).append(">");
                 end_of_line_stack[end_of_line_idx] = std::string("</h").append(std::to_string(header_level)).append(">");
                 end_of_line_idx++;
                 continue;
@@ -112,9 +129,9 @@ int main() {
             if (t.type == List) {
                 if( !mode_list ) {
                     mode_list = true;
-                    outputFile << "<ul>" << std::endl;
+                    outputStream << "<ul>" << std::endl;
                 }
-                outputFile << "<li>";
+                outputStream << "<li>";
                 end_of_line_stack[end_of_line_idx] = "</li>";
                 end_of_line_idx ++;
                 continue;
@@ -122,21 +139,21 @@ int main() {
 
             if (t.type == Text) {
                 if (!mode_list && !mode_bold && !mode_italic && !mode_italic_bold) {
-                    outputFile << "<p>";
+                    outputStream << "<p>";
                     end_of_line_stack[end_of_line_idx] = "</p>";
                     end_of_line_idx ++;
                 }
-                outputFile << std::string_view(buffer_input.data() + t.start, t.end-t.start);
+                outputStream << std::string_view(buffer_input.data() + t.start, t.end-t.start);
                 continue;
             }
 
             if (t.type == Bold) {
                 if (!mode_bold) {
                     mode_bold = true;
-                    outputFile << "<b>";
+                    outputStream << "<b>";
                 } else {
                     mode_bold = false;
-                    outputFile << "</b>";
+                    outputStream << "</b>";
                 }
                 continue;
             }
@@ -144,10 +161,10 @@ int main() {
             if (t.type == Italic) {
                 if (!mode_italic) {
                     mode_italic = true;
-                    outputFile << "<i>";
+                    outputStream << "<i>";
                 } else {
                     mode_italic = false;
-                    outputFile << "</i>";
+                    outputStream << "</i>";
                 }
                 continue;
             }
@@ -156,10 +173,10 @@ int main() {
             if (t.type == ItalicBold) {
                 if (!mode_italic_bold) {
                     mode_italic_bold = true;
-                    outputFile << "<b><i>";
+                    outputStream << "<b><i>";
                 } else {
                     mode_italic_bold = false;
-                    outputFile << "</b></i>";
+                    outputStream << "</b></i>";
                 }
                 continue;
             }
@@ -170,19 +187,24 @@ int main() {
 
         while(end_of_line_idx > 0) {
             end_of_line_idx--;
-            outputFile << end_of_line_stack[end_of_line_idx];
+            outputStream << end_of_line_stack[end_of_line_idx];
         }
 
     }
 
     if(mode_list) {
-        outputFile << "</ul>" << std::endl;
+        outputStream << "</ul>" << std::endl;
         mode_list = false;
     }
     
 
-    outputFile << "</body>" << std::endl;
-    outputFile << "</html>" << std::endl;
+    outputStream << "<p>Checksum: ";
+    outputStream << to_string(xor_checksum(outputStream.str()));
+    outputStream << "</p>\n";
+    outputStream << "</body>" << std::endl;
+    outputStream << "</html>" << std::endl;
+
+    outputFile << outputStream.str();
 
     outputFile.close();
 	return 0;
